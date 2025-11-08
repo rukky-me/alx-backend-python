@@ -1,146 +1,146 @@
+#!/usr/bin/python3
+
 import mysql.connector
 from mysql.connector import Error
 import csv
 import uuid
 
 
-#This conects to MYSQL to the server
+
+"""
+seed.py
+This script connects to MySQL, creates a database and table, 
+(optionally inserts CSV data), and uses a generator to stream rows one by one.
+"""
+
+# CONNECT TO MYSQL SERVER (without specifying any database)
+
 def connect_db():
     """
-    Connects to the MySQL server (not a specific database yet).
+    Connects to the MySQL server.
+    Returns a connection object or None if connection fails.
     """
     try:
-        connection = mysql.connector.connect(
-            host="localhost",
-            user="root",
-            password="your_password"
+        conn = mysql.connector.connect(
+            host="localhost",   # local MySQL server
+            user="rukky",       # updated username
+            password="" # updated password
         )
-        if connection.is_connected():
-            print("Connected to MySQL server")
-            return connection
-    except Error as e:
-        print(f"Error connecting to MySQL: {e}")
+        print("Connected to MySQL server (no database).")
+        return conn
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
         return None
 
 
-#This creates database if it does not already exist
+# CREATE DATABASE IF IT DOESN'T EXIST
+
 def create_database(connection):
     """
-    Creates the database ALX_prodev if it does not exist.
+    Creates the 'ALX_prodev' database if it does not exist.
     """
-    try:
-        cursor = connection.cursor()
-        cursor.execute("CREATE DATABASE IF NOT EXISTS ALX_prodev;")
-        print("Database 'ALX_prodev' ensured to exist.")
-    except Error as e:
-        print(f"Error creating database: {e}")
+    cursor = connection.cursor()
+    cursor.execute("CREATE DATABASE IF NOT EXISTS ALX_prodev;")
+    connection.commit()
+    print("Database 'ALX_prodev' created or already exists.")
+    cursor.close()
 
 
-#This connects to ALX_prodev DATABASE
+# CONNECT TO SPECIFIC DATABASE (ALX_prodev)
 
 def connect_to_prodev():
     """
-    Connects directly to the ALX_prodev database.
+    Connects to the ALX_prodev database.
     """
     try:
-        connection = mysql.connector.connect(
+        conn = mysql.connector.connect(
             host="localhost",
-            user="root",
-            password="your_password",
+            user="rukky",        # updated username
+            password="",# updated password
             database="ALX_prodev"
         )
-        if connection.is_connected():
-            print("Connected to 'ALX_prodev' database.")
-            return connection
-    except Error as e:
-        print(f"Error connecting to ALX_prodev: {e}")
+        print("Connected to ALX_prodev database.")
+        return conn
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
         return None
 
-
-#CREATE user_data TABLE
+# CREATE TABLE user_data IF NOT EXISTS
 
 def create_table(connection):
     """
-    Creates the user_data table if it does not exist.
+    Creates a 'user_data' table if it doesn't exist already.
     """
-    try:
-        cursor = connection.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS user_data (
-                user_id VARCHAR(36) PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                email VARCHAR(100) NOT NULL UNIQUE,
-                age DECIMAL(3, 0) NOT NULL,
-                INDEX (user_id)
-            );
-        """)
-        connection.commit()
-        print("Table 'user_data' ensured to exist.")
-    except Error as e:
-        print(f"Error creating table: {e}")
+    cursor = connection.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_data (
+            user_id VARCHAR(36) PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            email VARCHAR(100) NOT NULL,
+            age DECIMAL NOT NULL
+        );
+    """)
+    connection.commit()
+    print("Table 'user_data' created successfully.")
+    cursor.close()
 
 
 
-#INSERT DATA FROM CSV
+# INSERT DATA FROM CSV FILE INTO THE TABLE
 
-def insert_data(connection, csv_file_path):
+def insert_data(connection, csv_file):
     """
-    Inserts data from CSV file into the user_data table if not already present.
+    Reads data from a CSV file and inserts it into user_data table.
+    Uses INSERT IGNORE to avoid duplicate entries.
     """
-    try:
-        cursor = connection.cursor()
-        with open(csv_file_path, mode="r", encoding="utf-8") as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                user_id = str(uuid.uuid4())
-                cursor.execute("""
-                    INSERT IGNORE INTO user_data (user_id, name, email, age)
-                    VALUES (%s, %s, %s, %s)
-                """, (user_id, row["name"], row["email"], row["age"]))
-        connection.commit()
-        print("Data inserted successfully from CSV.")
-    except Error as e:
-        print(f"Error inserting data: {e}")
+    cursor = connection.cursor()
+    with open(csv_file, 'r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            cursor.execute("""
+                INSERT IGNORE INTO user_data (user_id, name, email, age)
+                VALUES (%s, %s, %s, %s);
+            """, (row['user_id'], row['name'], row['email'], row['age']))
+    connection.commit()
+    print("Data inserted successfully from CSV.")
+    cursor.close()
 
 
-# GENERATOR TO STREAM ROWS
 
-def stream_user_data(connection):
+# GENERATOR FUNCTION TO STREAM USERS ONE BY ONE
+
+def stream_users(connection):
     """
-    Generator that streams user rows one by one.
+    A generator that fetches rows from user_data table one at a time.
+    Useful for handling large datasets without using too much memory.
     """
-    try:
-        cursor = connection.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM user_data;")
-        for row in cursor:
-            yield row  # Yield one row at a time (memory-efficient)
-    except Error as e:
-        print(f"Error streaming data: {e}")
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM user_data;")
+
+    for row in cursor:
+        yield row
+
+    cursor.close()
 
 
-#This is the MAIN execution, it streams user data 
+
+# MAIN EXECUTION FLOW
 
 if __name__ == "__main__":
-    # Step 1: Connect to MySQL server
+    print("🔌 Connecting to MySQL...")
     conn = connect_db()
-
     if conn:
-        # Step 2: Create database
         create_database(conn)
         conn.close()
 
-        # Step 3: Connect to ALX_prodev DB
-        db_conn = connect_to_prodev()
-
-        # Step 4: Create table
-        create_table(db_conn)
-
-        # Step 5: Insert CSV data (path to your CSV file)
-        insert_data(db_conn, "user_data.csv")
-
-        # Step 6: Use generator to stream data
-        print("\n--- Streaming user data row by row ---")
-        for user in stream_user_data(db_conn):
+    print("Connecting to ALX_prodev...")
+    conn = connect_to_prodev()
+    if conn:
+        create_table(conn)
+        
+        print("Streaming rows from user_data:")
+        for user in stream_users(conn):
             print(user)
-
-        db_conn.close()
+        
+        conn.close()
+        print("Done! All tasks completed successfully.")
