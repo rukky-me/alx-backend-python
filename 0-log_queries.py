@@ -39,6 +39,6 @@ def fetch_all_users(query):
     conn.close()
     return results
 
-# Step 8: Call the function to test it
+# Call the function to test it
 users = fetch_all_users(query="SELECT * FROM users")
 print(users)
