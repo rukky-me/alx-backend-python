@@ -13,4 +13,4 @@ python -m unittest tests/test_utils.py -v
 chmod +x test_utils.py
 
 ## To check with pycodestyle
-pycodestyle test_utils.py
+pycodestyle filename
