@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch, Mock, PropertyMock
 from parameterized import parameterized
 from client import GithubOrgClient
+from fixtures import org_payload, repos_payload, expected_repos, apache2_repos
 
 
 class TestGithubOrgClient(unittest.TestCase):
@@ -125,6 +126,62 @@ class TestGithubOrgClient(unittest.TestCase):
         """
         result = GithubOrgClient.has_license(repo, license_key)
         self.assertEqual(result, expected)
+
+
+"""
+Integration tests for GithubOrgClient.public_repos.
+This ensures the client works correctly end-to-end while mocking
+only external HTTP requests.
+"""
+
+
+@parameterized_class([
+    {
+        "org_payload": org_payload,
+        "repos_payload": repos_payload,
+        "expected_repos": expected_repos,
+        "apache2_repos": apache2_repos,
+    }
+])
+class TestIntegrationGithubOrgClient(unittest.TestCase):
+    """Integration tests for GithubOrgClient.public_repos."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up the test class by patching requests.get."""
+        # Patch 'requests.get' globally in the 'client' module
+        cls.get_patcher = patch('requests.get')
+
+        # Start the patcher and get the mock
+        mock_get = cls.get_patcher.start()
+
+        # Configure the side effect: depending on the URL, return different payloads
+        def side_effect(url):
+            """Return different fake responses depending on URL."""
+            if url == GithubOrgClient.ORG_URL.format(org="google"):
+                return Mock(json=lambda: cls.org_payload)
+            elif url == cls.org_payload["repos_url"]:
+                return Mock(json=lambda: cls.repos_payload)
+
+        mock_get.side_effect = side_effect
+
+    @classmethod
+    def tearDownClass(cls):
+        """Stop the patcher after all tests."""
+        cls.get_patcher.stop()
+
+    def test_public_repos(self):
+        """Test that public_repos returns the expected list of repo names."""
+        client = GithubOrgClient("google")
+        self.assertEqual(client.public_repos(), self.expected_repos)
+
+    def test_public_repos_with_license(self):
+        """Test filtering repos by license using has_license."""
+        client = GithubOrgClient("google")
+        self.assertEqual(
+            client.public_repos(license="apache-2.0"),
+            self.apache2_repos
+        )
 
 
 if __name__ == "__main__":
