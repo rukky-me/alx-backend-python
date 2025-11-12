@@ -12,6 +12,7 @@ from unittest.mock import patch, Mock
 from parameterized import parameterized
 from utils import access_nested_map  # This is the function to be tested
 from utils import get_json
+from utils import memoize
 
 
 class TestAccessNestedMap(unittest.TestCase):
@@ -95,6 +96,48 @@ class TestGetJson(unittest.TestCase):
         # Assertions
         mock_get.assert_called_once_with(test_url)
         self.assertEqual(result, test_payload)
+
+
+"""
+Unit tests for utils.memoize decorator.
+This test verifies that the memoize decorator correctly caches a method’s
+result so that subsequent calls do not re-execute the original method.
+"""
+
+
+class TestMemoize(unittest.TestCase):
+    """Tests for the memoize decorator."""
+
+    def test_memoize(self) -> None:
+        """Test that memoize caches method results properly."""
+
+        class TestClass:
+            """Simple test class to verify memoization behavior."""
+
+            def a_method(self) -> int:
+                """A dummy method that returns a fixed number."""
+                return 42
+
+            @memoize
+            def a_property(self) -> int:
+                """Method decorated with memoize that calls a_method."""
+                return self.a_method()
+
+        # Patch a_method to track how many times it is called
+        with patch.object(TestClass, "a_method", return_value=42) as mock_method:
+            obj = TestClass()
+
+            # First call - should execute a_method once
+            result1 = obj.a_property()
+            # Second call - should use cached result, no new call to a_method
+            result2 = obj.a_property()
+
+            # Assert both results are the same
+            self.assertEqual(result1, 42)
+            self.assertEqual(result2, 42)
+
+            # Assert a_method was called only once
+            mock_method.assert_called_once()
 
 
 if __name__ == '__main__':
