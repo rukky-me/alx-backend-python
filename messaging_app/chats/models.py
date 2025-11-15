@@ -29,6 +29,8 @@ class User(AbstractUser):
         choices=Roles.choices,
         default=Roles.GUEST
     )
+    
+    password_hash = models.CharField(max_length=255, null=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
