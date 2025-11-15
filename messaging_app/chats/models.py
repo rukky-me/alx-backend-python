@@ -64,3 +64,10 @@ class Message(models.Model):
 
     def __str__(self):
         return f"Message from {self.sender.email} in {self.conversation.id}"
+    
+class User(AbstractUser):
+    ...
+    class Meta:
+        indexes = [
+            models.Index(fields=["email"]),
+        ]
