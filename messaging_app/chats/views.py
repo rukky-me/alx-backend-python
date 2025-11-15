@@ -1,95 +1,58 @@
-# views.py
-from rest_framework import viewsets, status
-from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from rest_framework.decorators import action
+from rest_framework import viewsets, filters
+from rest_framework.permissions import IsAuthenticated
+from django_filters.rest_framework import DjangoFilterBackend
 
-from .models import Conversation, Message, User
-from .serializers import (
-    ConversationSerializer,
-    ConversationCreateSerializer,
-    MessageSerializer,
-)
+from .models import User, Conversation, Message
+from .serializers import UserSerializer, ConversationSerializer, MessageSerializer
 
 
-# CONVERSATION VIEWSET
+#       USER VIEWSET
+
+class UserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+
+    # Filters here
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["is_active"]           # filter by active/inactive
+    search_fields = ["username", "email"]      # search users
+
+
+
+#   CONVERSATION VIEWSET
 class ConversationViewSet(viewsets.ModelViewSet):
-    """
-    Handles:
-    - List all conversations
-    - Retrieve single conversation with nested messages
-    - Create a new conversation
-    """
-    queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
+    permission_classes = [IsAuthenticated]
 
-    def get_serializer_class(self):
-        if self.action == "create":
-            return ConversationCreateSerializer
-        return ConversationSerializer
+    # Filters here
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["user"]    # filter conversations by user id
+    search_fields = ["title"]      # search conversations by title
 
-    def create(self, request, *args, **kwargs):
-        serializer = ConversationCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def get_queryset(self):
+        # Only list conversations belonging to the authenticated user
+        return Conversation.objects.filter(user=self.request.user)
 
-        conversation = serializer.save()
-
-        return Response(
-            ConversationSerializer(conversation).data,
-            status=status.HTTP_201_CREATED
-        )
+    def perform_create(self, serializer):
+        # Auto-assign the authenticated user as the owner of the conversation
+        serializer.save(user=self.request.user)
 
 
-#  MESSAGE VIEWSET
+#       MESSAGE VIEWSET
 
 class MessageViewSet(viewsets.ModelViewSet):
-    """
-    Handles:
-    - List messages
-    - Retrieve message
-    - Send message to existing conversation
-    """
-    queryset = Message.objects.all()
     serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        """
-        Send a message to a conversation.
-        Required fields:
-        - sender_id
-        - conversation_id
-        - message_body
-        """
-        sender_id = request.data.get("sender_id")
-        conversation_id = request.data.get("conversation_id")
-        message_body = request.data.get("message_body")
+    # Filters here
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter]
+    filterset_fields = ["conversation", "sender"]  # filter messages
+    search_fields = ["content"]                    # search messages by text
 
-        # Validate sender
-        try:
-            sender = User.objects.get(user_id=sender_id)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Sender does not exist."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+    def get_queryset(self):
+        # Only messages within conversations that belong to the user
+        return Message.objects.filter(conversation__user=self.request.user)
 
-        # Validate conversation
-        try:
-            conversation = Conversation.objects.get(conversation_id=conversation_id)
-        except Conversation.DoesNotExist:
-            return Response(
-                {"error": "Conversation not found."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Create message
-        message = Message.objects.create(
-            sender=sender,
-            conversation=conversation,
-            message_body=message_body
-        )
-
-        return Response(
-            MessageSerializer(message).data,
-            status=status.HTTP_201_CREATED
-        )
+    def perform_create(self, serializer):
+        # Auto-set the sender to the authenticated user
+        serializer.save(sender=self.request.user)
