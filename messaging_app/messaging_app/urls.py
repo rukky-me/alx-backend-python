@@ -22,5 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     # API routes
-    path('api/', include('chats.urls')),   # <--- IMPORTANT
+    path('api/', include('chats.urls')),   
 ]
