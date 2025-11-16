@@ -1,5 +1,4 @@
-# project/urls.py
-from django.contrib import admin
+# chats/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from chats.views import ConversationViewSet, MessageViewSet, UserViewSet
