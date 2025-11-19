@@ -1,17 +1,21 @@
+# chat/permissions.py
 from rest_framework import permissions
 from .models import Conversation, Message
 
 
-class IsConversationParticipant(permissions.BasePermission):
+class IsParticipantOfConversation(permissions.BasePermission):
     """
     Allow access only to participants of the conversation.
-    Assumes view has `get_object()` that returns a Conversation or that the object is passed directly.
+    Ensures only authenticated users can access the API.
     """
+    def has_permission(self, request, view):
+        # Require authentication for any action
+        return request.user and request.user.is_authenticated
+
     def has_object_permission(self, request, view, obj):
-        # obj is a Conversation instance or view.get_object() result
+        # Object-level check: user must be participant
         if isinstance(obj, Conversation):
             return request.user in obj.participants.all()
-        # if obj is Message, check its conversation
         if isinstance(obj, Message):
             return request.user in obj.conversation.participants.all()
         return False
@@ -19,26 +23,25 @@ class IsConversationParticipant(permissions.BasePermission):
 
 class IsMessageSenderOrParticipant(permissions.BasePermission):
     """
-    Allow message retrieval by conversation participants, allow message creation if sender is the request.user.
+    Allow message access only to conversation participants.
+    Creation allowed only if sender is the authenticated user.
     """
-
-    def has_object_permission(self, request, view, obj):
-        # obj is a Message
-        if isinstance(obj, Message):
-            # allow if user is a conversation participant
-            return request.user in obj.conversation.participants.all()
-        return False
-
     def has_permission(self, request, view):
-        # For create: ensure sender_id (if provided) matches request.user, or if using authenticated user, allow.
+        # Require authentication
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        # Creation check: sender must be request.user if sender_id is provided
         if view.action == 'create':
-            # if you require sender to be authenticated user, enforce it:
             sender_id = request.data.get('sender_id')
             if sender_id:
-                try:
-                    return str(request.user.pk) == str(sender_id)
-                except Exception:
-                    return False
-            # if you auto-assign sender from request.user (recommended), allow
+                return str(request.user.pk) == str(sender_id)
+            # if sender auto-assigned from request.user, allow
             return True
         return True
+
+    def has_object_permission(self, request, view, obj):
+        # Object-level check: user must be a participant of the conversation
+        if isinstance(obj, Message):
+            return request.user in obj.conversation.participants.all()
+        return False
