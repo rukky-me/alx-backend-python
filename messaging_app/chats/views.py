@@ -3,7 +3,6 @@ from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
-
 from .models import User, Conversation, Message
 from .serializers import (
     UserSerializer,
@@ -11,8 +10,7 @@ from .serializers import (
     MessageSerializer,
 )
 from .permissions import (
-    IsConversationParticipant,
-    IsMessageSenderOrParticipant,
+    IsParticipantOfConversation
 )
 
 
@@ -52,8 +50,7 @@ class UserViewSet(viewsets.ModelViewSet):
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
-    permission_classes = [IsAuthenticated, IsConversationParticipant]
-
+    permission_classes = [IsParticipantOfConversation]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = {"participants__id": ["exact"]}
     ordering_fields = ["created_at"]
@@ -79,7 +76,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
 class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-    permission_classes = [IsAuthenticated, IsMessageSenderOrParticipant]
+    permission_classes = [IsParticipantOfConversation]
 
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = {
