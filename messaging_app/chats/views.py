@@ -1,4 +1,3 @@
-# chat/views.py
 from rest_framework import viewsets, status, filters
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -9,9 +8,9 @@ from .serializers import (
     ConversationSerializer,
     MessageSerializer,
 )
-from .permissions import (
-    IsParticipantOfConversation
-)
+from .permissions import (IsParticipantOfConversation)
+from .filters import MessageFilter
+from .pagination import MessagePagination
 
 
 
@@ -51,6 +50,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
     serializer_class = ConversationSerializer
     permission_classes = [IsParticipantOfConversation]
+    
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = {"participants__id": ["exact"]}
     ordering_fields = ["created_at"]
@@ -77,6 +77,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
     permission_classes = [IsParticipantOfConversation]
+    pagination_class = MessagePagination
 
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_fields = {
