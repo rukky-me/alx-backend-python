@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import User, Conversation, Message
 
 
+
 # USER SERIALIZER (uses CharField & ValidationError)
 
 class UserSerializer(serializers.ModelSerializer):
@@ -37,6 +38,27 @@ class UserSerializer(serializers.ModelSerializer):
         return value
 
 
+# MESSAGE SERIALIZERS
+class MessageSerializer(serializers.ModelSerializer):
+    message_body = serializers.CharField()
+    sender = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Message
+        fields = [
+            "message_id",
+            "sender",
+            "conversation",
+            "message_body",
+            "sent_at",
+        ]
+        read_only_fields = [
+            "message_id",
+            "sent_at",
+            "sender",
+        ]
+
+
 # CONVERSATION SERIALIZERS
 class ConversationSerializer(serializers.ModelSerializer):
     participants = UserSerializer(many=True, read_only=True)
@@ -65,23 +87,3 @@ class ConversationSerializer(serializers.ModelSerializer):
         return obj.messages.count()
 
 
-
-# MESSAGE SERIALIZERS
-class MessageSerializer(serializers.ModelSerializer):
-    message_body = serializers.CharField()
-    sender = UserSerializer(read_only=True)
-
-    class Meta:
-        model = Message
-        fields = [
-            "message_id",
-            "sender",
-            "conversation",
-            "message_body",
-            "sent_at",
-        ]
-        read_only_fields = [
-            "message_id",
-            "sent_at",
-            "sender",
-        ]
