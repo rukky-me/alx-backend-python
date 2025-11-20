@@ -48,26 +48,23 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class ConversationViewSet(viewsets.ModelViewSet):
     queryset = Conversation.objects.all()
-    serializer_class = ConversationSerializer
     permission_classes = [IsParticipantOfConversation]
-    
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = {"participants__id": ["exact"]}
-    ordering_fields = ["created_at"]
-    ordering = ["-created_at"]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return ConversationCreateSerializer
+        return ConversationSerializer
 
     def get_queryset(self):
-        # restrict to conversations where user is a participant
         return Conversation.objects.filter(participants=self.request.user)
 
     def perform_create(self, serializer):
-        # conversation is created with provided participants
         conv = serializer.save()
 
-        # ensure the logged-in user is always included
+        # Ensure logged-in user is included
         if self.request.user not in conv.participants.all():
             conv.participants.add(self.request.user)
-            conv.save()
+
 
 
 

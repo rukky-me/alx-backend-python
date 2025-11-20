@@ -59,6 +59,24 @@ class MessageSerializer(serializers.ModelSerializer):
         ]
 
 
+class ConversationCreateSerializer(serializers.ModelSerializer):
+    participant_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        write_only=True
+    )
+
+    class Meta:
+        model = Conversation
+        fields = ["participant_ids"]
+
+    def create(self, validated_data):
+        participant_ids = validated_data.pop("participant_ids")
+        conversation = Conversation.objects.create()
+        conversation.participants.set(participant_ids)
+        return conversation
+
+
+
 # CONVERSATION SERIALIZERS
 class ConversationSerializer(serializers.ModelSerializer):
     participants = UserSerializer(many=True, read_only=True)
@@ -85,5 +103,6 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     def get_message_count(self, obj):
         return obj.messages.count()
+    
 
 
