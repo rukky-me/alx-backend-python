@@ -2,7 +2,11 @@
 import uuid
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from .managers import UserManager
 
+
+
+objects = UserManager()
 
 # USER MODEL
 class User(AbstractUser):
@@ -15,9 +19,7 @@ class User(AbstractUser):
         primary_key=True, default=uuid.uuid4, editable=False
     )
 
-    # Remove username from AbstractUser
-    username = None
-
+    username = None  # REMOVE USERNAME
     email = models.EmailField(unique=True, null=False)
     first_name = models.CharField(max_length=255, null=False)
     last_name = models.CharField(max_length=255, null=False)
@@ -29,13 +31,15 @@ class User(AbstractUser):
         choices=Roles.choices,
         default=Roles.GUEST
     )
-    
+
     password_hash = models.CharField(max_length=255, null=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
+
+    objects = UserManager()   
 
     def __str__(self):
         return f"{self.email} ({self.role})"
