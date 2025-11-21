@@ -13,7 +13,6 @@ from .filters import MessageFilter
 from .pagination import MessagePagination
 
 
-
 # USER VIEWSET
 
 class UserViewSet(viewsets.ModelViewSet):
