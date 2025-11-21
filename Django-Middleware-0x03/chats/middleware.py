@@ -50,60 +50,50 @@ class RestrictAccessByTimeMiddleware:
         return self.get_response(request)
     
 
-class MessageRateLimitMiddleware:
+class OffensiveLanguageMiddleware(MiddlewareMixin):
     """
-    Limit number of chat messages sent per IP within a 1-minute window.
-    Max allowed = 5 POST requests per minute.
+    Middleware that limits the number of chat messages a user can send
+    within a 1-minute window, based on their IP address.
     """
 
-    def __init__(self, get_response):
-        self.get_response = get_response
+    # Store request timestamps per IP address
+    request_log = {}
 
-        # Store data as: ip_address -> list_of_timestamps
-        self.ip_message_log = defaultdict(list)
+    def process_request(self, request):
+        # Only track POST requests to message endpoints
+        if request.method != "POST":
+            return None
 
-        # Rate limit settings
-        self.max_messages = 5       # 5 messages allowed
-        self.time_window = 60       # 60 seconds = 1 minute
+        # Extract client IP address
+        ip_address = request.META.get("REMOTE_ADDR", "unknown")
 
-    def __call__(self, request):
-        # Only limit POST requests — because messages are created using POST
-        if request.method == "POST" and "/messages" in request.path:
-            
-            # Get user IP address
-            ip_address = self.get_client_ip(request)
-            current_time = time.time()
+        # Initialize if IP not tracked before
+        if ip_address not in self.request_log:
+            self.request_log[ip_address] = []
 
-            # Clean logs: keep only timestamps within the last minute
-            recent_timestamps = [
-                t for t in self.ip_message_log[ip_address]
-                if current_time - t < self.time_window
-            ]
-            self.ip_message_log[ip_address] = recent_timestamps
+        current_time = time.time()
+        time_window = 60  # 1 minute
+        limit = 5         # max 5 messages per minute
 
-            # Check if the limit is exceeded
-            if len(recent_timestamps) >= self.max_messages:
-                return JsonResponse(
-                    {
-                        "error": "Rate limit exceeded. You can only send 5 messages per minute.",
-                        "ip": ip_address,
-                        "limit": self.max_messages,
-                        "time_window_seconds": self.time_window
-                    },
-                    status=429  # Too Many Requests
-                )
+        # Keep only requests from the last 60 seconds
+        recent_requests = [
+            t for t in self.request_log[ip_address]
+            if current_time - t < time_window
+        ]
+        self.request_log[ip_address] = recent_requests
 
-            # Otherwise, log new request timestamp
-            self.ip_message_log[ip_address].append(current_time)
+        # Check if limit exceeded
+        if len(recent_requests) >= limit:
+            return JsonResponse(
+                {
+                    "error": "Message rate limit exceeded.",
+                    "detail": "You may only send 5 messages per minute.",
+                    "ip": ip_address
+                },
+                status=429
+            )
 
-        return self.get_response(request)
+        # Add current timestamp to the list
+        self.request_log[ip_address].append(current_time)
 
-    @staticmethod
-    def get_client_ip(request):
-        """
-        Safely returns the user's IP address.
-        """
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0]  # first IP in list
-        return request.META.get("REMOTE_ADDR")
+        return None
