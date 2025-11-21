@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime, time
 from django.http import JsonResponse
+from collections import defaultdict
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -47,3 +48,62 @@ class RestrictAccessByTimeMiddleware:
             )
 
         return self.get_response(request)
+    
+
+class MessageRateLimitMiddleware:
+    """
+    Limit number of chat messages sent per IP within a 1-minute window.
+    Max allowed = 5 POST requests per minute.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+        # Store data as: ip_address -> list_of_timestamps
+        self.ip_message_log = defaultdict(list)
+
+        # Rate limit settings
+        self.max_messages = 5       # 5 messages allowed
+        self.time_window = 60       # 60 seconds = 1 minute
+
+    def __call__(self, request):
+        # Only limit POST requests — because messages are created using POST
+        if request.method == "POST" and "/messages" in request.path:
+            
+            # Get user IP address
+            ip_address = self.get_client_ip(request)
+            current_time = time.time()
+
+            # Clean logs: keep only timestamps within the last minute
+            recent_timestamps = [
+                t for t in self.ip_message_log[ip_address]
+                if current_time - t < self.time_window
+            ]
+            self.ip_message_log[ip_address] = recent_timestamps
+
+            # Check if the limit is exceeded
+            if len(recent_timestamps) >= self.max_messages:
+                return JsonResponse(
+                    {
+                        "error": "Rate limit exceeded. You can only send 5 messages per minute.",
+                        "ip": ip_address,
+                        "limit": self.max_messages,
+                        "time_window_seconds": self.time_window
+                    },
+                    status=429  # Too Many Requests
+                )
+
+            # Otherwise, log new request timestamp
+            self.ip_message_log[ip_address].append(current_time)
+
+        return self.get_response(request)
+
+    @staticmethod
+    def get_client_ip(request):
+        """
+        Safely returns the user's IP address.
+        """
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            return x_forwarded_for.split(",")[0]  # first IP in list
+        return request.META.get("REMOTE_ADDR")
