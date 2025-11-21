@@ -97,3 +97,48 @@ class OffensiveLanguageMiddleware(MiddlewareMixin):
         self.request_log[ip_address].append(current_time)
 
         return None
+    
+    
+class RolePermissionMiddleware:
+    """
+    Middleware that allows only admins or moderators to access restricted paths.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+        # List of URL paths that require admin/moderator role
+        self.restricted_paths = [
+            "/admin-only/",
+            "/moderator-actions/",
+            "/api/admin/",        
+            "/api/moderator/",    
+        ]
+
+    def __call__(self, request):
+        # Check if path is restricted
+        request_path = request.path
+
+        if any(request_path.startswith(path) for path in self.restricted_paths):
+
+            # Must be authenticated
+            if not request.user.is_authenticated:
+                return JsonResponse(
+                    {"error": "Authentication required"}, status=401
+                )
+
+            # User must have a valid role
+            user_role = getattr(request.user, "role", None)
+
+            if user_role not in ["admin", "moderator"]:
+                return JsonResponse(
+                    {
+                        "error": "Forbidden: You do not have the required permissions.",
+                        "required_roles": ["admin", "moderator"],
+                        "your_role": user_role,
+                    },
+                    status=403,
+                )
+
+        return self.get_response(request)
+    
