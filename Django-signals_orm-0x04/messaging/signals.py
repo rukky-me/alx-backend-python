@@ -15,17 +15,40 @@ def create_notification_on_message(sender, instance, created, **kwargs):
 
 @receiver(pre_save, sender=Message)
 def log_message_edit(sender, instance, **kwargs):
-    # Only run if message already exists (edit)
+    # Only run if the message already exists (i.e., an update)
     if instance.pk:
         old_message = Message.objects.get(pk=instance.pk)
 
-        # Content changed?
+        # Detect content change
         if old_message.content != instance.content:
-            # Mark edited
             instance.edited = True
 
-            # Save old version in history table
+            # Create history record
             MessageHistory.objects.create(
                 message=instance,
-                old_content=old_message.content
+                old_content=old_message.content,
+                edited_by=instance.edited_by  # The last editor
             )
+            
+@receiver(post_delete, sender=User)
+def cleanup_user_data(sender, instance, **kwargs):
+    user = instance
+
+    # Delete any MessageHistory entries related to messages the user sent or received
+    MessageHistory.objects.filter(message__sender=user).delete()
+    MessageHistory.objects.filter(message__receiver=user).delete()
+
+    # Delete Notifications belonging to user
+    Notification.objects.filter(user=user).delete()
+
+    # Delete messages sent or received by the user
+    Message.objects.filter(sender=user).delete()
+    Message.objects.filter(receiver=user).delete()
+
+    # Optional: clean up edits they made
+    MessageHistory.objects.filter(edited_by=user).delete()
+
+    # Optional: clean up messages they edited
+    Message.objects.filter(edited_by=user).update(edited_by=None)
+
+    print(f"Cleanup completed for deleted user: {user.username}")
