@@ -14,6 +14,7 @@ def unread_messages(request):
     using Message.unread.for_user() and optimized .only()
     """
 
+    Message.unread.unread_for_user(request.user)
 
     Message.objects.filter(receiver=request.user)
 
@@ -50,7 +51,7 @@ def delete_user(request):
     user = request.user
     username = user.username
 
-    user.delete()  # triggers post_delete signal
+    user.delete()
 
     return Response({"message": f"User '{username}' deleted successfully"})
 
@@ -83,7 +84,7 @@ def get_thread(request, message_id):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def reply_to_message(request, message_id):
-    parent = Message.objects.filter(id=message_id).first()  # ✔ contains filter
+    parent = Message.objects.filter(id=message_id).first()
     if not parent:
         return Response({"error": "Parent message not found"}, status=404)
 
