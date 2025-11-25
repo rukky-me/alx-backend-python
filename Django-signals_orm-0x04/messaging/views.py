@@ -1,13 +1,32 @@
-# messaging/views.py
-from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from messaging.models import Message
-from messaging.serializers import MessageSerializer
 from messaging.utils import build_thread
 
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def unread_messages(request):
+    """
+    Return unread messages for the authenticated user
+    using Message.unread.for_user() and optimized .only()
+    """
+    unread_qs = Message.unread.for_user(request.user)
+
+    data = [
+        {
+            "id": msg.id,
+            "sender": msg.sender_id,
+            "content": msg.content,
+            "timestamp": msg.timestamp,
+        }
+        for msg in unread_qs
+    ]
+
+    return Response({"unread_messages": data})
 
 
 messages = (
@@ -28,46 +47,52 @@ def delete_user(request):
     user = request.user
     username = user.username
 
-    user.delete()  # triggers automatic post_delete cleanup
+    user.delete()  # triggers post_delete signal
 
-    return Response(
-        {"message": f"User '{username}' deleted successfully"},
-        status=status.HTTP_200_OK
-    )
-
+    return Response({"message": f"User '{username}' deleted successfully"})
 
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_thread(request, message_id):
-    # Explicit use of Message.objects.filter (your requirement)
-    base_queryset = (
-        Message.objects
-        .filter(id=message_id)  # <-- required filter usage
-        .select_related("sender", "receiver")
-        .prefetch_related(
-            "replies__sender",
-            "replies__receiver",
-            "replies__replies"
+    try:
+        message = (
+            Message.objects
+            .select_related("sender", "receiver")
+            .prefetch_related(
+                "replies__sender",
+                "replies__receiver",
+                "replies__replies"
+            )
+            .only(
+                "id", "sender", "receiver", "content", "timestamp",
+                "parent_message"
+            )  # ✔ optimized fields
+            .get(id=message_id)
         )
-    )
-
-    message = base_queryset.first()
-    if not message:
+    except Message.DoesNotExist:
         return Response({"error": "Message not found"}, status=404)
 
     thread = build_thread(message)
     return Response(thread)
 
 
-class MessageViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
-    serializer_class = MessageSerializer
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def reply_to_message(request, message_id):
+    parent = Message.objects.filter(id=message_id).first()
+    if not parent:
+        return Response({"error": "Parent message not found"}, status=404)
 
-    def get_queryset(self):
-        # Reuse your optimized queryset
-        return messages
+    content = request.data.get("content")
+    if not content:
+        return Response({"error": "Content is required"}, status=400)
 
-    def perform_create(self, serializer):
-        # Required: sender=request.user
-        serializer.save(sender=request.user)
+    reply = Message.objects.create(
+        sender=request.user,
+        receiver=parent.receiver,
+        content=content,
+        parent_message=parent
+    )
+
+    return Response({"message": "Reply sent", "reply_id": reply.id}, status=201)

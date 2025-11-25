@@ -1,4 +1,3 @@
-# messaging/urls.py
 from rest_framework.routers import DefaultRouter
 from messaging.views import MessageViewSet, UserAccountViewSet
 
