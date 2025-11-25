@@ -1,20 +1,21 @@
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework import viewsets, status
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
 from messaging.models import Message
+from messaging.serializers import MessageSerializer
 from messaging.utils import build_thread
 
 
-from messaging.models import Message
-
 messages = (
     Message.objects
-    .filter(parent_message__isnull=True)  # top-level messages
+    .filter(parent_message__isnull=True)
     .select_related("sender", "receiver")
     .prefetch_related(
         "replies__sender",
         "replies__receiver",
-        "replies__replies"  # nested replies
+        "replies__replies"
     )
 )
 
@@ -25,9 +26,12 @@ def delete_user(request):
     user = request.user
     username = user.username
 
-    user.delete()  # triggers the post_delete signal below
+    user.delete()  # triggers post_delete cleanup
 
-    return Response({"message": f"User '{username}' deleted successfully"})
+    return Response(
+        {"message": f"User '{username}' deleted successfully"},
+        status=status.HTTP_200_OK
+    )
 
 
 @api_view(["GET"])
@@ -48,5 +52,22 @@ def get_thread(request, message_id):
         return Response({"error": "Message not found"}, status=404)
 
     thread = build_thread(message)
-
     return Response(thread)
+
+
+class MessageViewSet(viewsets.ModelViewSet):
+    """
+    Handles listing, creating, retrieving messages.
+    Thread view remains separate because you requested
+    to keep its original function name (get_thread).
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = MessageSerializer
+
+    def get_queryset(self):
+        # use your optimized queryset
+        return messages
+
+    # Preserve your sender=request.user requirement
+    def perform_create(self, serializer):
+        serializer.save(sender=request.user)
