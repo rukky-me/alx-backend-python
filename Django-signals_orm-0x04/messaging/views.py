@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-
+from django.views.decorators.cache import cache_page
 from messaging.models import Message
 from messaging.utils import build_thread
 
@@ -58,6 +58,7 @@ def delete_user(request):
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@cache_page(60)   # ✔ Cache this view for 60 seconds
 def get_thread(request, message_id):
     try:
         message = (
@@ -79,7 +80,6 @@ def get_thread(request, message_id):
 
     thread = build_thread(message)
     return Response(thread)
-
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
