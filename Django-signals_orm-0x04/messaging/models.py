@@ -1,8 +1,12 @@
 from django.db import models 
 from django.conf import settings
+from messaging.managers import UnreadMessagesManager
+
 
 User = settings.AUTH_USER_MODEL
 
+objects = models.Manager()
+unread = UnreadMessagesManager()
 
 class UnreadMessagesManager(models.Manager):
     def for_user(self, user):
