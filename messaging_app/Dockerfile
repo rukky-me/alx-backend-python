@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt --default-timeout=200 -i http
 COPY . /app/
 
 # Expose Django’s default port
+# NOTE: Use -p 8000:8000 when running the container
 EXPOSE 8000
 
 # Command to run the Django server
