@@ -1,0 +1,20 @@
+.env
+# Environment variables
+.env
+
+# Python cache files
+__pycache__/
+*.pyc
+
+# Django / Python
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.env.*
+
+# Docker
+*.log
+docker-data/
