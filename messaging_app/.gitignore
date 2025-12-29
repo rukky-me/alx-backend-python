@@ -1,4 +1,3 @@
-.env
 # Environment variables
 .env
 
@@ -18,3 +17,14 @@ venv/
 # Docker
 *.log
 docker-data/
+mysql_data/
+
+
+# MySQL
+*.ibd
+*.ibdata*
+*.frm
+
+# Docker volumes
+**/mysql_data/
+**/data/
