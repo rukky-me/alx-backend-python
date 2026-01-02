@@ -4,6 +4,11 @@
 # Python cache files
 __pycache__/
 *.pyc
+db.sqlite3
+
+# Docker / Kubernetes binaries
+minikube-linux-amd64
+kubectl
 
 # Django / Python
 *.pyo
