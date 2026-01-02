@@ -1,0 +1,7 @@
+# Kubernetes / binaries
+minikube
+minikube-linux-amd64
+kubectl
+*-linux-amd64
+venv/
+.env
