@@ -33,3 +33,8 @@ mysql_data/
 # Docker volumes
 **/mysql_data/
 **/data/
+# Kubernetes / binaries
+minikube
+minikube-linux-amd64
+kubectl
+*-linux-amd64

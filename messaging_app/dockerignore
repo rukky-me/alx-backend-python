@@ -11,9 +11,10 @@ staticfiles/
 node_modules/
 *.db
 *.exe
-*-linux-amd64
-# Kubernetes binaries
+
+# Kubernetes / binaries
 minikube
 minikube-linux-amd64
 kubectl
+*-linux-amd64
 
