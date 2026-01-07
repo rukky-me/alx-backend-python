@@ -38,3 +38,11 @@ minikube
 minikube-linux-amd64
 kubectl
 *-linux-amd64
+kubectl-linux-amd64
+docker
+docker-linux-amd64
+
+# Python cache / tests
+__pycache__/
+*.pyc
+fixtures.py

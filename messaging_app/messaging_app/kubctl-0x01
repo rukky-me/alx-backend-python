@@ -1,0 +1,13 @@
+#!/bin/bash
+
+echo "Scaling Django app to 3 replicas..."
+kubectl scale deployment messaging-app-deployment --replicas=3
+
+
+echo "Verifying pods..."
+kubectl get pods
+
+echo "Monitoring resource usage..."
+kubectl top pods
+
+echo "Done."
