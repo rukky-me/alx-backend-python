@@ -8,8 +8,8 @@ spec:
     - host: messaging-app.local
       http:
         paths:
-          - path: /
-            pathType: Prefix
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: messaging-app-service
